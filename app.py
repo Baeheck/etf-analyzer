@@ -160,13 +160,14 @@ fig_proj.update_layout(
 st.plotly_chart(fig_proj, use_container_width=True)
 
 total_invested_final = proj_initial + proj_monthly * proj_years * 12
+keys = list(final_values.keys())
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Total you invest", f"CHF {total_invested_final:,.0f}")
-c2.metric("Conservative (4%)", f"CHF {final_values['Conservative (4%/yr)']:,.0f}")
-c3.metric("Base case (7%)", f"CHF {final_values['Base (7%/yr)']:,.0f}")
-c4.metric("Optimistic (10%)", f"CHF {final_values['Optimistic (10%/yr)']:,.0f}")
+c2.metric("Conservative", f"CHF {final_values[keys[0]]:,.0f}")
+c3.metric("Base case", f"CHF {final_values[keys[1]]:,.0f}")
+c4.metric("Optimistic", f"CHF {final_values[keys[2]]:,.0f}")
 
-st.caption("7% is the approximate long-run average annual return for global equities after inflation is excluded. Not guaranteed.")
+st.caption(f"Base rate: {proj_ticker}'s real historical return ({base_rate}% annualised). Not a prediction.")
 
 # ----------------------------------------------------------------
 # Section 5: Backtest
