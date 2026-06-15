@@ -86,15 +86,29 @@ if st.button("Generate AI Brief", type="primary"):
 # ----------------------------------------------------------------
 st.divider()
 st.header("Compound Growth Projection")
-st.markdown("How much will regular investing grow over time? Three scenarios so you see a range, not a false single number.")
+st.markdown("How much will regular investing grow over time? Pick an ETF — the base rate uses its real historical return.")
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 with col1:
-    proj_initial = st.number_input("Initial lump sum (CHF)", min_value=0.0, value=0.0, step=500.0)
+    proj_ticker = st.selectbox("Base ETF", list(ETFS.keys()), format_func=lambda t: t, key="proj_ticker")
 with col2:
-    proj_monthly = st.number_input("Monthly contribution (CHF)", min_value=0.0, value=200.0, step=50.0)
+    proj_initial = st.number_input("Initial lump sum (CHF)", min_value=0.0, value=0.0, step=500.0)
 with col3:
+    proj_monthly = st.number_input("Monthly contribution (CHF)", min_value=0.0, value=200.0, step=50.0)
+with col4:
     proj_years = st.slider("Time horizon (years)", min_value=1, max_value=40, value=20)
+
+# Calculate the ETF's actual historical annualised return
+def get_historical_cagr(prices, ticker):
+    s = prices[ticker].dropna()
+    for years in [5, 3, 1]:
+        days = years * 252
+        if len(s) >= days:
+            return round(((s.iloc[-1] / s.iloc[-days]) ** (1 / years) - 1) * 100, 1), years
+    return 7.0, None  # fallback
+
+base_rate, base_years = get_historical_cagr(prices, proj_ticker)
+base_label = f"{proj_ticker} historical {base_years}Y CAGR ({base_rate}%)" if base_years else f"Default (7%)"
 
 def project(initial, monthly, annual_pct, years):
     r = (1 + annual_pct / 100) ** (1/12) - 1
@@ -109,13 +123,12 @@ def project(initial, monthly, annual_pct, years):
     return values, invested_line
 
 scenarios = {
-    "Conservative (4%/yr)": (4.0, "#f4a261"),
-    "Base (7%/yr)": (7.0, "#00cc96"),
-    "Optimistic (10%/yr)": (10.0, "#636efa"),
+    f"Conservative ({max(base_rate - 3, 1):.1f}%/yr)": (max(base_rate - 3, 1), "#f4a261"),
+    f"Base — {base_label}": (base_rate, "#00cc96"),
+    f"Optimistic ({base_rate + 3:.1f}%/yr)": (base_rate + 3, "#636efa"),
 }
 
-x_months = list(range(1, proj_years * 12 + 1))
-x_years_labels = [round(m / 12, 1) for m in x_months]
+x_years_labels = [round(m / 12, 1) for m in range(1, proj_years * 12 + 1)]
 
 fig_proj = go.Figure()
 final_values = {}
@@ -129,8 +142,7 @@ for label, (rate, color) in scenarios.items():
         hovertemplate=f"<b>{label}</b><br>Year %{{x}}<br>Value: CHF %{{y:,.0f}}<extra></extra>",
     ))
 
-# Total invested line (same for all scenarios)
-_, inv_line = project(proj_initial, proj_monthly, 7.0, proj_years)
+_, inv_line = project(proj_initial, proj_monthly, base_rate, proj_years)
 fig_proj.add_trace(go.Scatter(
     x=x_years_labels, y=inv_line, mode="lines", name="Total invested",
     line=dict(color="gray", width=1, dash="dash"),
